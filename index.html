@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Interests</title>
+    <title>Weather and Air Quality Check</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f9;
+            background-color: #e8f5ff;
         }
         header {
-            background-color: #4CAF50;
+            background-color: #007BFF;
             color: white;
             text-align: center;
             padding: 1em 0;
@@ -28,42 +29,125 @@
         h1, h2 {
             text-align: center;
         }
-        iframe {
+        form {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 70%;
+            padding: 10px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            color: white;
+            background-color: #007BFF;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .weather-result {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+        canvas {
             display: block;
             margin: 20px auto;
-            border: none;
-            border-radius: 8px;
-            width: 100%;
-            max-width: 720px;
-            height: 405px;
-        }
-        p {
-            font-size: 1.1em;
-            line-height: 1.6;
+            max-width: 100%;
         }
     </style>
+    <script>
+        async function getWeather(event) {
+            event.preventDefault();
+            const apiKey = '24109ddecb29a5405afe2a8df42c5e34';
+            const location = document.getElementById('location').value;
+            const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${apiKey}&units=metric`;
+            const airQualityUrl = `https://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid=${apiKey}`;
+
+            try {
+                const weatherResponse = await fetch(weatherUrl);
+                if (!weatherResponse.ok) {
+                    throw new Error('City not found');
+                }
+                const weatherData = await weatherResponse.json();
+
+                const lat = weatherData.coord.lat;
+                const lon = weatherData.coord.lon;
+
+                const airQualityResponse = await fetch(airQualityUrl.replace('{lat}', lat).replace('{lon}', lon));
+                if (!airQualityResponse.ok) {
+                    throw new Error('Air quality data not found');
+                }
+                const airQualityData = await airQualityResponse.json();
+
+                document.getElementById('weather-result').innerHTML = `
+                    <p>Weather in <strong>${weatherData.name}</strong>:</p>
+                    <p><strong>${weatherData.weather[0].description}</strong></p>
+                    <p>Temperature: <strong>${weatherData.main.temp}°C</strong></p>
+                    <p>Humidity: <strong>${weatherData.main.humidity}%</strong></p>
+                `;
+
+                const pm2_5 = airQualityData.list[0].components.pm2_5;
+                const pm10 = airQualityData.list[0].components.pm10;
+                const co = airQualityData.list[0].components.co;
+                const no2 = airQualityData.list[0].components.no2;
+
+                const ctx = document.getElementById('airQualityChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['PM2.5', 'PM10', 'CO', 'NO2'],
+                        datasets: [{
+                            label: 'Air Quality Levels',
+                            data: [pm2_5, pm10, co, no2],
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.6)',
+                                'rgba(54, 162, 235, 0.6)',
+                                'rgba(255, 206, 86, 0.6)',
+                                'rgba(75, 192, 192, 0.6)'
+                            ],
+                            borderColor: [
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                document.getElementById('weather-result').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+    </script>
 </head>
 <body>
     <header>
-        <h1>Welcome to My Interests Page</h1>
+        <h1>Weather and Air Quality Check</h1>
     </header>
     <main>
-        <h2>Featured Video</h2>
-        <iframe 
-            src="https://www.youtube.com/embed/kU0B2HLzt5U?si=ybG_9IO2hqHwV2I8" 
-            title="YouTube video player" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-            allowfullscreen>
-        </iframe>
-        <h2>About This Video</h2>
-        <p>
-            This video showcases something I find fascinating. Whether it's related to technology, arts, science, or entertainment, it represents a key aspect of my interests. 
-            Feel free to watch and let me know your thoughts!
-        </p>
-        <h2>More About Me</h2>
-        <p>
-            I am passionate about exploring various topics and sharing what I find interesting with others. This page is a small representation of what excites and inspires me.
-        </p>
+        <h2>Enter a Location</h2>
+        <form onsubmit="getWeather(event)">
+            <input type="text" id="location" placeholder="Enter city name" required />
+            <button type="submit">Check Weather</button>
+        </form>
+        <div id="weather-result" class="weather-result"></div>
+        <canvas id="airQualityChart"></canvas>
     </main>
 </body>
 </html>
